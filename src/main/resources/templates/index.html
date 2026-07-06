@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chatAI Multiverse</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #2e1065 100%) !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .glass-container {
+            width: 900px;
+            height: 620px;
+            background: rgba(15, 23, 42, 0.45) !important;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.02);
+            border-radius: 24px;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 24px 20px;
+            font-size: 19px;
+            font-weight: bold;
+            color: #f8fafc;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .character-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .char-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .char-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        .char-item.active {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .char-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+        .char-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .avatar-ai { box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); }
+        .avatar-sherlock { box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
+        .avatar-gordon { box-shadow: 0 0 12px rgba(249, 115, 22, 0.4); }
+        .avatar-custom { box-shadow: 0 0 12px rgba(168, 85, 247, 0.5); } /* 보라색 네온 */
+
+        .char-info { display: flex; flex-direction: column; overflow: hidden; }
+        .char-name { font-weight: bold; font-size: 15px; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .char-desc { font-size: 11px; color: #94a3b8; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ➕ 추가하기 버튼 디자인 */
+        .add-char-btn {
+            margin: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            color: #94a3b8;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .add-char-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #f8fafc;
+        }
+
+        /* 오른쪽 채팅창 영역 */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: rgba(0, 0, 0, 0.1); }
+        .chat-header {
+            padding: 24px 20px; font-weight: bold; font-size: 17px; color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+        /* 말풍선 */
+        .message-wrapper { display: flex; flex-direction: column; max-width: 75%; animation: chatFade 0.25s ease-out; }
+        @keyframes chatFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .message-content { padding: 12px 18px; border-radius: 18px; font-size: 14.5px; line-height: 1.5; word-break: break-all; }
+        .msg-ai { align-self: flex-start; }
+        .msg-ai .message-content { background: #e2e8f0; color: #0f172a; border-top-left-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .msg-user { align-self: flex-end; }
+        .msg-user .message-content { background: rgba(79, 70, 229, 0.85); color: #ffffff; border-top-right-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 6px 18px rgba(79, 70, 229, 0.25); }
+
+        /* 하단 입력 폼 */
+        .chat-input-area { padding: 18px 20px; display: flex; gap: 12px; background: rgba(0, 0, 0, 0.15); border-top: 1px solid rgba(255, 255, 255, 0.06); }
+        .chat-input { flex: 1; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 14px 18px; font-size: 14px; outline: none; background: rgba(255, 255, 255, 0.05); color: #ffffff; }
+        .chat-input::placeholder { color: #64748b; }
+        .chat-input:focus { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.3); }
+        .chat-submit { background: #f8fafc; color: #1e1b4b; border: none; font-weight: bold; font-size: 15px; padding: 0 24px; border-radius: 14px; cursor: pointer; transition: all 0.2s; }
+        .chat-submit:hover { background: #ffffff; transform: translateY(-1px); }
+
+        /* 🪟 팝업 모달창 스타일 (글래스모피즘 컨셉 유지) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 999;
+        }
+        .modal-box {
+            width: 440px; background: rgba(30, 27, 75, 0.85); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 24px; color: #f8fafc;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 16px; }
+        .modal-form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .modal-label { font-size: 13px; color: #94a3b8; }
+        .modal-input, .modal-textarea {
+            padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.2); color: #fff; outline: none; font-size: 14px;
+        }
+        .modal-textarea { resize: none; height: 70px; }
+
+        /* ✂️ 아바타 업로드 & 크롭 구역 */
+        .avatar-upload-zone {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+        }
+        .modal-avatar-preview {
+            width: 60px; height: 60px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.3);
+            display: flex; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; overflow: hidden;
+        }
+        .modal-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* 크로퍼 상자 크기 제어 */
+        .crop-container {
+            width: 100%; max-height: 200px; background: #000; margin-top: 10px; display: none;
+            border-radius: 8px; overflow: hidden;
+        }
+        .crop-container img { max-width: 100%; }
+
+        .modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .modal-btn { padding: 10px 18px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: #f8fafc; }
+        .btn-save { background: #4f46e5; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="glass-container">
+    <div class="sidebar">
+        <div class="sidebar-header">🔮 AI Multiverse</div>
+        <div class="character-list" id="charList">
+            <div class="char-item active" onclick="switchCharacter(this, 'persona-ai', '✨ 다정한 비서 에이')">
+                <div class="char-avatar avatar-ai"><img src="/ai.png" alt="에이"></div>
+                <div class="char-info">
+                    <div class="char-name">에이</div>
+                    <div class="char-desc">다정하고 깊게 공감해주는 친구</div>
+                </div>
+            </div>
+            <div class="char-item" onclick="switchCharacter(this, 'persona-sherlock', '🔍 탐정 셜록')">
+                <div class="char-avatar avatar-sherlock"><img src="/sherlock.png" alt="셜록"></div>
+                <div class="char-info">
+                    <div class="char-name">셜록</div>
+                    <div class="char-desc">예리하고 이성적인 추리 천재</div>
+                </div>
+            </div>
+            <div class="char-item" onclick="switchCharacter(this, 'persona-gordon', '🍳 요리사 고든')">
+                <div class="char-avatar avatar-gordon"><img src="/gordon.png" alt="고든"></div>
+                <div class="char-info">
+                    <div class="char-name">고든</div>
+                    <div class="char-desc">화끈하고 유쾌한 레시피 마스터</div>
+                </div>
+            </div>
+        </div>
+        <div class="add-char-btn" onclick="openModal()">+ 캐릭터 추가하기</div>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header" id="currentTitle">✨ 다정한 친구 에이</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="questionInput" class="chat-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMessage()">
+            <button class="chat-submit" onclick="sendMessage()">전송</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+        <div class="modal-title">🎭 새로운 페르소나 설계</div>
+
+        <div class="avatar-upload-zone">
+            <div class="modal-avatar-preview" id="avatarPreview" onclick="document.getElementById('fileInput').click()">➕</div>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="initCropper(this)">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-weight:bold; font-size:14px;">프로필 이미지 설정</span>
+                <span style="font-size:11px; color:#94a3b8;">아이콘을 눌러 사진을 정하고 동그라미에 맞추세요.</span>
+            </div>
+        </div>
+
+        <div class="crop-container" id="cropContainer">
+            <img id="cropImage">
+        </div>
+
+        <div class="modal-form-group" style="margin-top: 15px;">
+            <label class="modal-label">이름</label>
+            <input type="text" id="newName" class="modal-input" placeholder="예: 무림고수 장삼풍">
+        </div>
+        <div class="modal-form-group">
+            <label class="modal-label">한줄 소개</label>
+            <input type="text" id="newDesc" class="modal-input" placeholder="예: 무당파의 창시자이자 태극권 마스터">
+        </div>
+        <div class="modal-form-group">
+            <label class="modal-label">AI 조종 주입 명령어 (System Instruction)</label>
+            <textarea id="newPrompt" class="modal-textarea" placeholder="AI에게 부여할 구체적인 말투나 성격을 적어주세요."></textarea>
+        </div>
+
+        <div class="modal-btns">
+            <button class="modal-btn btn-cancel" onclick="closeModal()">취소</button>
+            <button class="modal-btn btn-save" onclick="saveCustomCharacter()">생성 및 저장</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRoomId = "persona-ai";
+    let cropper = null;
+    let croppedBase64 = "/luna.png";
+
+    // 모든 대화방의 과거 기록을 담는 캐시
+    const roomHistoryCache = {
+        "persona-ai": [{ text: "안녕! 기다리고 있었어. 오늘 하루 어땠어?", sender: "ai" }],
+        "persona-sherlock": [{ text: "흥미로운 사건이라도 있나? 단서를 들려주게.", sender: "ai" }],
+        "persona-gordon": [{ text: "냉장고에 뭐가 남았지? 끝내주는 요리를 알려주지!", sender: "ai" }]
+    };
+
+    // 커스텀 방들의 순수 시스템 프롬프트를 보관할 캐시
+    const customPromptCache = {};
+
+    const chatMessages = document.getElementById("chatMessages");
+    const questionInput = document.getElementById("questionInput");
+
+    // 🚀 [핵심] 페이지 로드 시 DB에서 커스텀 캐릭터 목록을 가져와 사이드바에 뿌리기
+    async function loadCustomCharactersFromServer() {
+        try {
+            const response = await fetch('/api/characters');
+            if (!response.ok) throw new Error("데이터를 가져올 수 없음");
+
+            const characters = await response.json();
+
+            // 중요: 데이터를 불러온 후 사이드바를 초기화하고 다시 그림
+            const charList = document.getElementById("charList");
+            // 고든/셜록/에이 기본값은 유지하고 커스텀만 추가하거나
+            // 아예 서버에서 전체 목록을 받아와서 다 새로 그리는 것이 안전합니다.
+
+            characters.forEach(char => {
+                customPromptCache[char.roomId] = char.systemPrompt;
+                if (!roomHistoryCache[char.roomId]) {
+                    roomHistoryCache[char.roomId] = [{ text: `반갑네! 나는 ${char.name}(이)라네. 무엇이든 물어보게나.`, sender: "ai" }];
+                }
+                appendCharacterToSidebar(char.roomId, char.name, char.description, char.avatarBase64);
+            });
+        } catch (error) {
+            console.error("데이터 로드 실패:", error);
+        }
+    }
+
+    // 초기 실행
+    renderChat();
+    loadCustomCharactersFromServer();
+
+    function switchCharacter(element, roomId, displayName) {
+        document.querySelectorAll('.char-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+        currentRoomId = roomId;
+        document.getElementById("currentTitle").innerText = displayName;
+        renderChat();
+    }
+
+    function renderChat() {
+        chatMessages.innerHTML = "";
+        const currentHistory = roomHistoryCache[currentRoomId] || [];
+        currentHistory.forEach(msg => {
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("message-wrapper", msg.sender === 'user' ? "msg-user" : "msg-ai");
+            const content = document.createElement("div");
+            content.classList.add("message-content");
+            content.innerText = msg.text;
+            wrapper.appendChild(content);
+            chatMessages.appendChild(wrapper);
+        });
+        scrollToBottom();
+    }
+
+    let isSending = false; // 중복 클릭 방지 플래그
+
+    async function sendMessage() {
+        const question = questionInput.value.trim();
+        if (!question || isSending) return;
+
+        isSending = true; // 전송 잠금
+        roomHistoryCache[currentRoomId].push({ text: question, sender: "user" });
+        renderChat();
+        questionInput.value = "";
+
+        // 🎯 현재 방 ID에 해당하는 시스템 프롬프트를 캐시에서 정확히 추출
+        const currentCustomPrompt = customPromptCache[currentRoomId] || "";
+
+        try {
+            // 주소창 파라미터로 명확하게 주입하여 전송
+            const response = await fetch(`/api/chat-persistent?conversationId=${currentRoomId}&question=${encodeURIComponent(question)}&customPrompt=${encodeURIComponent(currentCustomPrompt)}`);
+            const aiAnswer = await response.text();
+            roomHistoryCache[currentRoomId].push({ text: aiAnswer, sender: "ai" });
+            renderChat();
+        } catch (error) {
+            roomHistoryCache[currentRoomId].push({ text: "⚠️ 메시지 전송에 실패했습니다.", sender: "ai" });
+            renderChat();
+        } finally {
+            isSending = false; // 잠금 해제
+        }
+    }
+
+    function scrollToBottom() { chatMessages.scrollTop = chatMessages.scrollHeight; }
+
+    function openModal() { document.getElementById("modalOverlay").style.display = "flex"; }
+    function closeModal() {
+        document.getElementById("modalOverlay").style.display = "none";
+        if(cropper) { cropper.destroy(); cropper = null; }
+        document.getElementById("cropContainer").style.display = "none";
+        document.getElementById("avatarPreview").innerHTML = "➕";
+        document.getElementById("newName").value = "";
+        document.getElementById("newDesc").value = "";
+        document.getElementById("newPrompt").value = "";
+        croppedBase64 = "/luna.png";
+    }
+
+    function initCropper(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const cropImage = document.getElementById("cropImage");
+                cropImage.src = e.target.result;
+                document.getElementById("cropContainer").style.display = "block";
+                if (cropper) { cropper.destroy(); }
+                cropper = new Cropper(cropImage, { aspectRatio: 1, viewMode: 1, background: false, autoCropArea: 0.8 });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // 💾 캐릭터 생성 버튼 누를 때 작동 (이제 백엔드 DB로 던집니다!)
+    async function saveCustomCharacter() {
+        const name = document.getElementById("newName").value.trim();
+        const desc = document.getElementById("newDesc").value.trim();
+        const prompt = document.getElementById("newPrompt").value.trim();
+
+        if(!name || !desc) {
+            alert("이름과 한줄 소개를 채워주세요!");
+            return;
+        }
+
+        if (cropper) {
+            const canvas = cropper.getCroppedCanvas({ width: 150, height: 150 });
+            croppedBase64 = canvas.toDataURL("image/png");
+        }
+
+        const customRoomId = "persona-custom-" + Date.now();
+
+        // 기억 지침 주입 결합
+        const smartMemoryInstruction = `\n\n[필수 지침] **사용자가 자신의 이름이나 특징을 알려주면 이를 절대 잊지 말고, 다음 대화부터 친근하게 해당 호칭으로 불러주시오.**`;
+        const finalPrompt = (prompt || `당신은 ${name}입니다. 성격에 매칭되게 답변하세요.`) + smartMemoryInstruction;
+
+        // 1. 자바 백엔드 서버 DB에 영구 저장 요청!
+        const payload = {
+            roomId: customRoomId,
+            name: name,
+            description: desc,
+            systemPrompt: finalPrompt,
+            avatarBase64: croppedBase64
+        };
+
+        try {
+            await fetch('/api/characters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // 2. 성공 시 캐시 매핑 및 사이드바 배치
+            customPromptCache[customRoomId] = finalPrompt;
+            roomHistoryCache[customRoomId] = [{ text: `반갑네! 나는 ${name}(이)라네. 무엇이든 물어보게나.`, sender: "ai" }];
+
+            const newItem = appendCharacterToSidebar(customRoomId, name, desc, croppedBase64);
+            switchCharacter(newItem, customRoomId, `✨ ${name}`);
+            closeModal();
+
+        } catch (error) {
+            alert("캐릭터를 DB에 저장하는 데 실패했습니다.");
+        }
+    }
+
+    // 사이드바에 HTML 요소를 그리는 공통 모듈 분리
+    function appendCharacterToSidebar(roomId, name, desc, imgBase64) {
+        const charList = document.getElementById("charList");
+        const newItem = document.createElement("div");
+        newItem.classList.add("char-item");
+        newItem.setAttribute("onclick", `switchCharacter(this, '${roomId}', '✨ ${name}')`);
+        newItem.innerHTML = `
+            <div class="char-avatar avatar-custom"><img src="${imgBase64}" alt="${name}"></div>
+            <div class="char-info">
+                <div class="char-name">${name}</div>
+                <div class="char-desc">${desc}</div>
+            </div>
+        `;
+        charList.appendChild(newItem);
+        return newItem;
+    }
+</script>
+
+</body>
+</html>

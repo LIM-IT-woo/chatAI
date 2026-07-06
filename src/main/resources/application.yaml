@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: chatAI
+
+  ai:
+    google:
+      genai:
+        api-key: ${GOOGLE_API_KEY}
+
+  # 🎯 데이터베이스 연결 설정 (메모리가 아닌 로컬 파일 모드로 수정)
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:~/chatai_db;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    username: sa
+    password:
+
+  # 🎯 H2 콘솔 활성화 (웹브라우저에서 DB 확인용)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # 🎯 JPA 및 하이버네이트 설정 (테이블 자동 생성 및 데이터 유지)
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
